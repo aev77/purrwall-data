@@ -1,0 +1,25 @@
+name: sparks
+# Hourly market-trend snapshot -> purrwall.xyz/api/sparks-ingest.
+# Public repo on purpose: Actions minutes are free here, and nothing in this
+# pipeline is secret except the ingest token (repo secret SPARKS_TOKEN).
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sparks
+  cancel-in-progress: false
+
+jobs:
+  sparks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node fetch-sparks.mjs
+        env:
+          SPARKS_TOKEN: ${{ secrets.SPARKS_TOKEN }}
