@@ -11,6 +11,9 @@ concurrency:
   group: sparks
   cancel-in-progress: false
 
+permissions:
+  contents: write # the run commits its hourly history sample back to this repo
+
 jobs:
   sparks:
     runs-on: ubuntu-latest
@@ -23,3 +26,24 @@ jobs:
       - run: node fetch-sparks.mjs
         env:
           SPARKS_TOKEN: ${{ secrets.SPARKS_TOKEN }}
+      # Hyperliquid publishes no OI history and no listing dates, so these
+      # samples exist only if we keep taking them — the commit log IS the
+      # series. Runs even when the sparks publish failed (`if: always()`):
+      # the context sample was banked before the long candle sweep and is
+      # still good. Rebase-then-push so a slow run never loses to a manual
+      # commit; a rejected push is logged, not fatal — the next hour recovers.
+      - name: Commit history sample
+        if: always()
+        run: |
+          git config user.name 'purrwall-data bot'
+          git config user.email 'bot@users.noreply.github.com'
+          # `|| true`: a run that died before recordHistory leaves no history/
+          # at all, and `if: always()` must not turn that into a second red X.
+          git add history || true
+          if git diff --cached --quiet; then
+            echo 'no history change'
+            exit 0
+          fi
+          git commit -m "history: ctx sample $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase --autostash origin main || true
+          git push || echo 'push rejected — next run will carry it'
