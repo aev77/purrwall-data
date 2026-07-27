@@ -11,9 +11,9 @@
 // only consumer here, but we still pace to ~46 req/min (~970 weight/min) so a
 // retry burst never 429s. Full sweep of ~650 markets ~= 14 minutes.
 //
-// It also BANKS an hourly context snapshot (open interest, 24h volume,
-// funding) into this repo's git history — see recordHistory() near the bottom
-// for why that rides along here and why it lands in git rather than KV.
+// It also BANKS a context snapshot (open interest, 24h volume, funding) into
+// this repo's git history — see recordHistory() near the bottom for why that
+// rides along here and why it lands in git rather than KV.
 //
 // No dependencies. Node >= 20.
 
@@ -134,7 +134,14 @@ async function listMarkets() {
 }
 
 /**
- * Bank the hourly context snapshot into THIS REPO's git history.
+ * Bank this run's context snapshot into THIS REPO's git history.
+ *
+ * CADENCE IS IRREGULAR, and consumers must be built for it. The cron asks for
+ * hourly, but GitHub deprioritises scheduled workflows on public repos and
+ * drops triggers outright: measured over the 20 runs before 2026-07-27, the
+ * median gap was 2.2h and the worst 4.8h. Every row therefore carries its own
+ * `t` and must be matched by TIMESTAMP — indexing "24h ago" as rows[-24] would
+ * silently read a sample anywhere from 24 to 100+ hours old.
  *
  * Hyperliquid publishes no history for open interest, and the ctx endpoints
  * only ever answer "right now" — so an OI-change readout, a volume baseline,

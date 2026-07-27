@@ -28,10 +28,19 @@ storage schema committed before the feature's shape is known, and an
 append-only commit log already *is* a time series — auditable, diffable, and
 derivable into whatever serving format eventually wants it.
 
-- `history/ctx/YYYY-MM-DD.ndjson` — one line per hourly sweep:
+- `history/ctx/YYYY-MM-DD.ndjson` — one line per pipeline run:
   `{"t": <epoch ms>, "m": {"<coin>": [openInterestUsd, volume24hUsd, hourlyFunding]}}`.
   Values are 4 significant figures (every question they answer is a ratio).
   Spot markets carry `null` for open interest and funding — absent, not zero.
+
+  **Samples are irregular — always match on `t`, never by row position.** The
+  cron asks for hourly, but GitHub deprioritises scheduled workflows on public
+  repos and silently drops triggers: measured over the 20 runs before
+  2026-07-27, the median gap was **2.2 h** and the worst was **4.8 h**, with
+  only occasional true 1 h intervals. So "the sample 24 h ago" is a
+  nearest-by-timestamp lookup with a tolerance, not `rows[-24]`, and a
+  consumer should treat a gap beyond its tolerance as *no answer* rather than
+  reaching for the next row along.
 - `history/first-seen.json` — `{"baseline": "YYYY-MM-DD", "seen": {"<coin>": "YYYY-MM-DD"}}`.
   **Read `baseline` before using this.** The first run stamps every market that
   already existed with that day, because the file cannot know when they truly
